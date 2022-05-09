@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: |
+  Roman Numerals Converter Application (Python Flask) deployed on AWS EC2 with Cloudformation.
+
+Parameters:
+  myKeyPair:
+    Description: Select your key
+    Type: AWS::EC2::KeyPair::KeyName
+
+  myAMI:
+    Description: The id of the AMI
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  
+Resources:
+  mySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP for Flask Web Server and SSH port to secure reach to my EC2 # Required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+  
+  myServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref myAMI
+      KeyName: !Ref myKeyPair
+      InstanceType: t2.micro
+      SecurityGroupIds:
+        - !Ref mySecurityGroup 
+      Tags:
+        - Key: Name
+          Value: !Sub Web Server of ${AWS::StackName} Stack
+      UserData: 
+        Fn::Base64: |
+            #! /bin/bash
+            yum update -y
+            pip3 install flask
+            cd /home/ec2-user
+            FOLDER="https://raw.githubusercontent.com/ayse16/my_projects/main/Project-001-Roman-Numerals-Converter"
+            wget ${FOLDER}/app.py
+            mkdir templates
+            wget ${FOLDER}/templates/index.html
+            mv index.html templates
+            wget ${FOLDER}/templates/result.html
+            mv result.html templates
+            python3 app.py
+      
+Outputs:
+  WebsiteUrl:
+    Description: Roman Numerals Converter Application URL
+    Value: !Join 
+       - ''
+       - - 'http://'
+         - !GetAtt myServer.PublicDnsName
+
+#Outputs:
+#  WebsiteURL:
+#    Value: !Sub
+#      - http://${PublicAddress}
+#      - PublicAddress: !GetAtt myServer.PublicDnsName
+#    Description: Roman Numerals Converter Application URL
